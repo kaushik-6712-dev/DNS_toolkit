@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  threat-inspector:
+    build: .
+    container_name: threat_inspector_app
+    ports:
+      - "5000:5000"
+    environment:
+      - VT_API_KEY=${VT_API_KEY}
+      - SECRET_KEY=enterprise-layman-secret
+    volumes:
+      - scan_data:/app/instance
+    restart: unless-stopped
+
+volumes:
+  scan_data:

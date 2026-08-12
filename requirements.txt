@@ -1,0 +1,11 @@
+Flask==3.0.2
+Flask-SQLAlchemy==3.1.1
+Flask-Limiter==3.5.0
+Flask-CORS==4.0.0
+dnspython==2.6.1
+requests==2.31.0
+python-whois==0.9.3
+dkimpy==1.1.5
+extract-msg==0.48.0
+olefile==0.47
+gunicorn==21.2.0
