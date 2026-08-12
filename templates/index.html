@@ -1,1 +1,338 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Website & Email Security Inspector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { darkbg: '#0a0f1d', cardbg: '#131b2e', bordercolor: '#222f47' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0a0f1d; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0f1d; }
+        ::-webkit-scrollbar-thumb { background: #222f47; border-radius: 4px; }
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.1);
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen p-4 md:p-8 font-sans antialiased">
 
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center pb-6 mb-6 border-b border-bordercolor gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                🛡️ DNS RECONNAISSANCE AND SECURITY ANALYSIS TOOLKIT 
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Plain-English Security Checks for Users</p>
+        </div>
+        <button id="btn-refresh-log" onclick="loadHistory(true)" class="bg-cardbg hover:bg-bordercolor text-slate-200 px-4 py-2 rounded-lg text-xs font-semibold border border-bordercolor transition flex items-center gap-2 cursor-pointer">
+            <span id="refresh-spinner" class="hidden spinner"></span>
+            <span id="refresh-text">↻ Refresh Scan Log</span>
+        </button>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Input Area (Left 2 Columns) -->
+        <section class="lg:col-span-2 space-y-6">
+            
+            <!-- Navigation Tabs -->
+            <div class="flex border-b border-bordercolor">
+                <button id="btn-tab-domain" onclick="switchTab('domain')" class="px-6 py-3 font-semibold text-sm border-b-2 border-blue-500 text-blue-400 flex items-center gap-2">
+                    🌐 Check a Website / Domain
+                </button>
+                <button id="btn-tab-email" onclick="switchTab('email')" class="px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+                    📧 Check a Suspicious Email
+                </button>
+            </div>
+
+            <!-- TAB 1: WEBSITE INSPECTOR -->
+            <div id="tab-domain" class="bg-cardbg p-6 rounded-xl border border-bordercolor space-y-4">
+                <label class="block text-xs font-semibold text-slate-300">Enter Website Domain Name</label>
+                <div class="flex gap-2">
+                    <input type="text" id="target-domain" placeholder="e.g. google.com or suspicious-link.net" class="w-full bg-darkbg border border-bordercolor rounded-lg px-4 py-2.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500">
+                    <button id="btn-domain-scan" onclick="runDomainScan()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-6 py-2.5 rounded-lg whitespace-nowrap">
+                        Check Website
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: EMAIL INSPECTOR -->
+            <div id="tab-email" class="bg-cardbg p-6 rounded-xl border border-bordercolor space-y-4 hidden">
+                <label class="block text-xs font-semibold text-slate-300">Upload Email File (.eml or .msg)</label>
+                <input type="file" id="email-file" accept=".eml,.msg" class="w-full bg-darkbg border border-bordercolor p-2 rounded-lg text-xs">
+                <button id="btn-email-scan" onclick="runEmailScan()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-lg">
+                    Inspect Email File
+                </button>
+            </div>
+
+            <!-- LAYMAN RESULTS PANEL -->
+            <div id="results-panel" class="bg-cardbg p-6 rounded-xl border border-bordercolor space-y-6 hidden">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Inspector Verdict</h3>
+                    <p id="summary-text" class="text-base font-medium text-slate-200"></p>
+                </div>
+
+                <!-- DOMAIN CHECKLIST VIEW -->
+                <div id="domain-results-view" class="space-y-3 hidden"></div>
+
+                <!-- EMAIL ATTACHMENT VIEW -->
+                <div id="email-results-view" class="space-y-4 hidden">
+                    <div class="p-4 bg-darkbg rounded-lg border border-bordercolor space-y-1">
+                        <span class="text-xs text-slate-400 block">Sender Domain Authenticity</span>
+                        <strong id="email-sender-val" class="text-sm font-mono text-blue-400">-</strong>
+                    </div>
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Attachment Analysis</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-darkbg text-slate-400 uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2">Filename</th>
+                                        <th class="p-2">Size</th>
+                                        <th class="p-2">Safety Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attachment-table-body" class="divide-y divide-bordercolor font-mono"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Side Score Card & History -->
+        <section class="space-y-6">
+            <div class="bg-cardbg p-6 rounded-xl border border-bordercolor text-center space-y-3">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Risk Score</h2>
+                <span id="risk-score" class="text-5xl font-extrabold text-slate-500 block">0 / 100</span>
+                <div>
+                    <span id="severity-badge" class="inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-slate-400">
+                        STANDBY
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-cardbg p-6 rounded-xl border border-bordercolor space-y-3">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-bordercolor pb-2">Recent Scans</h3>
+                <div id="history-list" class="space-y-2 max-h-80 overflow-y-auto text-xs pr-1"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function switchTab(tab) {
+            document.getElementById('tab-domain').classList.toggle('hidden', tab !== 'domain');
+            document.getElementById('tab-email').classList.toggle('hidden', tab !== 'email');
+            
+            document.getElementById('results-panel').classList.add('hidden');
+            document.getElementById('domain-results-view').classList.add('hidden');
+            document.getElementById('email-results-view').classList.add('hidden');
+            
+            resetScoreCard();
+
+            document.getElementById('btn-tab-domain').className = tab === 'domain'
+                ? 'px-6 py-3 font-semibold text-sm border-b-2 border-blue-500 text-blue-400 flex items-center gap-2'
+                : 'px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2';
+
+            document.getElementById('btn-tab-email').className = tab === 'email'
+                ? 'px-6 py-3 font-semibold text-sm border-b-2 border-blue-500 text-blue-400 flex items-center gap-2'
+                : 'px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2';
+        }
+
+        function resetScoreCard() {
+            const scoreElem = document.getElementById('risk-score');
+            const badge = document.getElementById('severity-badge');
+            scoreElem.innerText = '0 / 100';
+            scoreElem.className = 'text-5xl font-extrabold text-slate-500 block';
+            badge.innerText = 'STANDBY';
+            badge.className = 'inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-slate-400';
+        }
+
+        async function runDomainScan() {
+            const domain = document.getElementById('target-domain').value.trim();
+            if (!domain) return alert('Please enter a domain.');
+
+            const btn = document.getElementById('btn-domain-scan');
+            btn.innerText = 'Checking...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/analyze/domain', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain })
+                });
+                const data = await res.json();
+                renderDomainAnalysis(data);
+            } catch (err) {
+                alert('Connection error.');
+            } finally {
+                btn.innerText = 'Check Website';
+                btn.disabled = false;
+            }
+        }
+
+        async function runEmailScan() {
+            const fileInput = document.getElementById('email-file');
+            if (!fileInput.files[0]) return alert('Please upload a file.');
+
+            const btn = document.getElementById('btn-email-scan');
+            btn.innerText = 'Inspecting...';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const res = await fetch('/api/analyze/email', { method: 'POST', body: formData });
+                const data = await res.json();
+                renderEmailAnalysis(data);
+            } catch (err) {
+                alert('Parsing failed.');
+            } finally {
+                btn.innerText = 'Inspect Email File';
+                btn.disabled = false;
+            }
+        }
+
+        function renderDomainAnalysis(data) {
+            document.getElementById('results-panel').classList.remove('hidden');
+            document.getElementById('domain-results-view').classList.remove('hidden');
+            document.getElementById('email-results-view').classList.add('hidden');
+
+            document.getElementById('summary-text').innerText = data.summary;
+
+            const view = document.getElementById('domain-results-view');
+            view.innerHTML = data.checks.map(c => `
+                <div class="p-4 bg-darkbg rounded-lg border border-bordercolor space-y-1">
+                    <div class="flex justify-between items-center">
+                        <strong class="text-sm text-slate-200">${c.title}</strong>
+                        <span class="text-xs font-bold px-2.5 py-0.5 rounded ${c.is_good ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}">
+                            ${c.status}
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400">${c.meaning}</p>
+                </div>
+            `).join('');
+
+            updateScoreCard(data.score, data.severity);
+        }
+
+        function renderEmailAnalysis(data) {
+            document.getElementById('results-panel').classList.remove('hidden');
+            document.getElementById('email-results-view').classList.remove('hidden');
+            document.getElementById('domain-results-view').classList.add('hidden');
+
+            document.getElementById('summary-text').innerText = data.summary;
+            document.getElementById('email-sender-val').innerText = `${data.sender_domain} (${data.dkim_valid ? 'Authentic Signature' : 'Unverified Signature'})`;
+
+            const tbody = document.getElementById('attachment-table-body');
+            if (data.attachments.length) {
+                tbody.innerHTML = data.attachments.map(a => `
+                    <tr>
+                        <td class="p-2 font-semibold text-slate-200">${a.filename}</td>
+                        <td class="p-2 text-slate-400">${a.size_kb} KB</td>
+                        <td class="p-2">
+                            ${a.is_dangerous ? '<span class="text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded">DANGEROUS CODE/MACRO</span>' : '<span class="text-emerald-400">SAFE FILE</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500">No attachments found in email.</td></tr>`;
+            }
+
+            updateScoreCard(data.score, data.severity);
+        }
+
+        function updateScoreCard(score, severity) {
+            const scoreElem = document.getElementById('risk-score');
+            const badge = document.getElementById('severity-badge');
+
+            scoreElem.innerText = `${score} / 100`;
+            badge.innerText = severity;
+
+            if (severity === 'HIGH RISK') {
+                scoreElem.className = 'text-5xl font-extrabold text-red-500 block';
+                badge.className = 'inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/40';
+            } else if (severity === 'MEDIUM CAUTION') {
+                scoreElem.className = 'text-5xl font-extrabold text-amber-500 block';
+                badge.className = 'inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40';
+            } else {
+                scoreElem.className = 'text-5xl font-extrabold text-emerald-400 block';
+                badge.className = 'inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+            }
+
+            loadHistory();
+        }
+
+        async function loadHistory(isManual = false) {
+            const spinner = document.getElementById('refresh-spinner');
+            const text = document.getElementById('refresh-text');
+
+            if (isManual) {
+                spinner.classList.remove('hidden');
+                text.innerText = 'Refreshing...';
+            }
+
+            try {
+                const res = await fetch(`/api/history?t=${Date.now()}`);
+                const history = await res.json();
+                const list = document.getElementById('history-list');
+
+                if (!history.length) {
+                    list.innerHTML = `<p class="text-slate-500 text-center py-2">No history recorded.</p>`;
+                    return;
+                }
+
+                list.innerHTML = history.map(item => `
+                    <div class="p-2.5 bg-darkbg rounded border border-bordercolor flex justify-between items-center cursor-pointer hover:border-slate-500 transition" onclick="selectFromHistory('${item.target}', '${item.type}')">
+                        <div class="truncate">
+                            <strong class="text-slate-200 block truncate">${item.target}</strong>
+                            <span class="text-[10px] text-slate-500">${item.type.toUpperCase()} • ${item.date}</span>
+                        </div>
+                        <span class="font-bold text-xs ${item.severity === 'HIGH RISK' ? 'text-red-400' : 'text-emerald-400'}">${item.score}</span>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            } finally {
+                if (isManual) {
+                    setTimeout(() => {
+                        spinner.classList.add('hidden');
+                        text.innerText = '↻ Refresh Scan Log';
+                    }, 300);
+                }
+            }
+        }
+
+        function selectFromHistory(target, type) {
+            if (type === 'domain') {
+                switchTab('domain');
+                document.getElementById('target-domain').value = target;
+            } else {
+                switchTab('email');
+                document.getElementById('target-email').value = target;
+            }
+        }
+
+        loadHistory();
+    </script>
+</body>
+</html>
